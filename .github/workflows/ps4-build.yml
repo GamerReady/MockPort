@@ -24,6 +24,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang lld python3 nlohmann-json3-dev
 
+      # PkgTool.Core bundles an old .NET runtime that needs OpenSSL 1.x, which
+      # Ubuntu 24.04 no longer ships. Take libssl1.1 from the focal archive.
+      - name: Install libssl1.1 for PkgTool.Core
+        run: |
+          echo "deb http://security.ubuntu.com/ubuntu focal-security main" \
+            | sudo tee /etc/apt/sources.list.d/focal-security.list
+          sudo apt-get update
+          sudo apt-get install -y libssl1.1
+          sudo rm /etc/apt/sources.list.d/focal-security.list
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
