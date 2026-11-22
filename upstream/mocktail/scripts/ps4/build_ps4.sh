@@ -34,6 +34,8 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-${REPO_ROOT}/build-ps4}"
 
+# Accept the old misspelled variable name as a fallback.
+PS4_SDK_ROOT="${PS4_SDK_ROOT:-${PSG4_SDK_ROOT:-}}"
 : "${PS4_SDK_ROOT:?Set PS4_SDK_ROOT to the PS4 (Orbis OS) SDK root}"
 
 if ! command -v cmake >/dev/null 2>&1; then
@@ -44,7 +46,7 @@ fi
 echo "==> Configuring PS4 port (SDK: ${PS4_SDK_ROOT})"
 cmake -S "${REPO_ROOT}" -B "${BUILD_DIR}" \
   -DCMAKE_TOOLCHAIN_FILE="${REPO_ROOT}/cmake/ps4/ps4-toolchain.cmake" \
-  -DPSG4_SDK_ROOT="${PS4_SDK_ROOT}" \
+  -DPS4_SDK_ROOT="${PS4_SDK_ROOT}" \
   -DMOCKTAIL_PS4_PORT=ON \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo
 
