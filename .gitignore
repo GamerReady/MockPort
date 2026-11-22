@@ -1,0 +1,19 @@
+# PS4 port build output
+build-ps4/
+build/
+
+# CMake build directories
+cmake-build-*/
+
+# Compiled artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
