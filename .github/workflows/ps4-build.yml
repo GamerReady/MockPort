@@ -1,0 +1,78 @@
+name: PS4 build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  OO_VERSION: v0.5.4
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    env:
+      DOTNET_ROLL_FORWARD: Major
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "1"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld python3 nlohmann-json3-dev
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Cache OpenOrbis toolchain
+        id: oo-cache
+        uses: actions/cache@v4
+        with:
+          path: openorbis
+          key: openorbis-${{ env.OO_VERSION }}
+
+      - name: Download OpenOrbis toolchain
+        if: steps.oo-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p openorbis
+          gh release download "${OO_VERSION}" -R OpenOrbis/OpenOrbis-PS4-Toolchain \
+            --pattern '*.tar.gz' -D openorbis
+          tar -xzf openorbis/*.tar.gz -C openorbis
+
+      - name: Locate toolchain
+        run: |
+          link_x="$(find openorbis -name link.x | head -n1)"
+          test -n "${link_x}" || { echo "link.x not found in toolchain"; exit 1; }
+          root="$(cd "$(dirname "${link_x}")" && pwd)"
+          chmod +x "${root}"/bin/linux/* || true
+          echo "OO_PS4_TOOLCHAIN=${root}" >> "$GITHUB_ENV"
+
+      - name: Build eboot.bin and .pkg
+        run: bash ps4/tools/build_pkg.sh
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: mockport-ps4-pkg
+          path: |
+            ps4/build/pkg/*.pkg
+            ps4/build/pkg/eboot.bin
+            ps4/build/pkg/sce_sys/
+
+      # Informational: never fails the job. Shows what still blocks building
+      # the full Mocktail port for Orbis (missing SDL3, libyaml, dlopen, ...).
+      - name: Probe Mocktail PS4 sources
+        continue-on-error: true
+        run: bash ps4/tools/probe_port_sources.sh
+
+      - name: Upload probe report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ps4-port-probe-report
+          path: ps4/build/probe-report.md
+          if-no-files-found: ignore
