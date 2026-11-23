@@ -17,16 +17,23 @@
 # Usage:
 #   cmake -B build-ps4 \
 #     -DCMAKE_TOOLCHAIN_FILE=cmake/ps4/ps4-toolchain.cmake \
-#     -DPSG4_SDK_ROOT=/path/to/ps4/sdk \
+#     -DPS4_SDK_ROOT=/path/to/ps4/sdk \
 #     -DMOCKTAIL_PS4_PORT=ON
 #
-# The PS4 SDK (Orbis OS SDK, e.g. the PS4-Orbis-SDK or a PSDev SDK
-# distribution) provides a clang that targets Orbis OS together with the
-# Orbis OS sysroot (system headers and libraries). Point PS4_SDK_ROOT at the
-# SDK root; the toolchain derives the compiler and sysroot from it.
+# The PS4 SDK provides a clang that targets Orbis OS together with the Orbis OS
+# sysroot (system headers and libraries). Point PS4_SDK_ROOT at the SDK root;
+# the toolchain derives the compiler and sysroot from it. The misspelled
+# PSG4_SDK_ROOT used by earlier docs is still accepted as an alias.
 
 set(CMAKE_SYSTEM_NAME Orbis)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
+
+if(NOT PS4_SDK_ROOT AND PSG4_SDK_ROOT)
+  set(PS4_SDK_ROOT "${PSG4_SDK_ROOT}")
+endif()
+if(NOT PS4_SDK_ROOT AND DEFINED ENV{PS4_SDK_ROOT})
+  set(PS4_SDK_ROOT "$ENV{PS4_SDK_ROOT}")
+endif()
 
 # The PS4 SDK ships its own clang/clang++ driver. Allow an explicit override;
 # otherwise derive it from the SDK root.
