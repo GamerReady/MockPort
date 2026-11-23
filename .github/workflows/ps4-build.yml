@@ -61,8 +61,31 @@ jobs:
           chmod +x "${root}"/bin/linux/* || true
           echo "OO_PS4_TOOLCHAIN=${root}" >> "$GITHUB_ENV"
 
+      # The sample's own Makefile builds every package below. MockPort-pkg uses
+      # MockPort's real main.cpp; the variants use the minimal main (known to
+      # launch) and add ONE change each:
+      #   icon: MockPort's generated icon0.png
+      #   ids:  MockPort Title ID / Content ID (MOCK...) instead of BREW...
       - name: Build MockPort .pkg
         run: bash ps4/tools/build_pkg.sh
+
+      - name: Variant icon (generated icon)
+        continue-on-error: true
+        run: |
+          OUT="${GITHUB_WORKSPACE}/ps4/build-icon" \
+          APP_SRC="${GITHUB_WORKSPACE}/ps4/app/main_min.cpp" \
+          CUSTOM_ICON=1 TITLE="MockPort icon" TITLE_ID=BREW00088 \
+          CONTENT_ID=IV0000-BREW00088_00-HELLOWORLD000000 \
+          bash ps4/tools/build_pkg.sh
+
+      - name: Variant ids (MockPort IDs)
+        continue-on-error: true
+        run: |
+          OUT="${GITHUB_WORKSPACE}/ps4/build-ids" \
+          APP_SRC="${GITHUB_WORKSPACE}/ps4/app/main_min.cpp" \
+          TITLE="MockPort ids" TITLE_ID=MOCK00001 \
+          CONTENT_ID=IV0000-MOCK00001_00-MOCKPORT00000000 \
+          bash ps4/tools/build_pkg.sh
 
       - name: Upload MockPort pkg
         uses: actions/upload-artifact@v4
@@ -70,45 +93,20 @@ jobs:
           name: MockPort-pkg
           path: ps4/build/pkg/*.pkg
 
-      # Launch bisection. The sample's own Makefile with MockPort's main
-      # launches; MockPort's script with the sample's main did not. Variants
-      # use the sample's main.cpp and default flags with MockPort's script:
-      #   J: MockPort IDs (tests the relative --eboot change alone)
-      #   I: sample-style IDs (BREW Title ID + HELLOWORLD content tail)
-      - name: Variant J (script + sample main, MockPort IDs)
-        continue-on-error: true
-        run: |
-          OUT="${GITHUB_WORKSPACE}/ps4/build-j" \
-          APP_SRC="${OO_PS4_TOOLCHAIN}/samples/hello_world/hello_world/main.cpp" \
-          COMPILE_FLAGS="" \
-          TITLE="MockPort J" TITLE_ID=MOCK00008 \
-          CONTENT_ID=IV0000-MOCK00008_00-MOCKPORT00000000 \
-          bash ps4/tools/build_pkg.sh
-
-      - name: Variant I (script + sample main, sample-style IDs)
-        continue-on-error: true
-        run: |
-          OUT="${GITHUB_WORKSPACE}/ps4/build-i" \
-          APP_SRC="${OO_PS4_TOOLCHAIN}/samples/hello_world/hello_world/main.cpp" \
-          COMPILE_FLAGS="" \
-          TITLE="MockPort I" TITLE_ID=BREW00086 \
-          CONTENT_ID=IV0000-BREW00086_00-HELLOWORLD000000 \
-          bash ps4/tools/build_pkg.sh
-
-      - name: Upload variant J pkg
+      - name: Upload variant icon pkg
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: MockPort-J-pkg
-          path: ps4/build-j/pkg/*.pkg
+          name: MockPort-icon-pkg
+          path: ps4/build-icon/pkg/*.pkg
           if-no-files-found: ignore
 
-      - name: Upload variant I pkg
+      - name: Upload variant ids pkg
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: MockPort-I-pkg
-          path: ps4/build-i/pkg/*.pkg
+          name: MockPort-ids-pkg
+          path: ps4/build-ids/pkg/*.pkg
           if-no-files-found: ignore
 
       # Control: the unmodified OpenOrbis hello_world sample.
