@@ -70,48 +70,45 @@ jobs:
           name: MockPort-pkg
           path: ps4/build/pkg/*.pkg
 
-      # Launch bisection. The unmodified OpenOrbis hello_world launches on the
-      # console, every MockPort build reports "corrupted data". Swap one side:
-      #   G: the sample's own Makefile, but with MockPort's minimal main.cpp
-      #   H: MockPort's build script, but with the sample's own main.cpp
-      # G must run before the control build, which leaves build output in the
-      # toolchain's sample directory.
-      - name: Variant G (sample Makefile + MockPort main)
+      # Launch bisection. The sample's own Makefile with MockPort's main
+      # launches; MockPort's script with the sample's main did not. Variants
+      # use the sample's main.cpp and default flags with MockPort's script:
+      #   J: MockPort IDs (tests the relative --eboot change alone)
+      #   I: sample-style IDs (BREW Title ID + HELLOWORLD content tail)
+      - name: Variant J (script + sample main, MockPort IDs)
         continue-on-error: true
         run: |
-          rm -rf /tmp/hello_world
-          cp -r "${OO_PS4_TOOLCHAIN}/samples/hello_world" /tmp/hello_world
-          cp ps4/app/main_min.cpp /tmp/hello_world/hello_world/main.cpp
-          cd /tmp/hello_world
-          make TITLE="MockPort G" TITLE_ID=BREW00085 \
-            CONTENT_ID=IV0000-BREW00085_00-HELLOWORLD000000
-          mkdir -p "${GITHUB_WORKSPACE}/variant-g"
-          cp ./*.pkg "${GITHUB_WORKSPACE}/variant-g/"
-
-      - name: Variant H (MockPort script + sample main)
-        continue-on-error: true
-        run: |
-          OUT="${GITHUB_WORKSPACE}/ps4/build-h" \
+          OUT="${GITHUB_WORKSPACE}/ps4/build-j" \
           APP_SRC="${OO_PS4_TOOLCHAIN}/samples/hello_world/hello_world/main.cpp" \
           COMPILE_FLAGS="" \
-          TITLE="MockPort H" TITLE_ID=MOCK00007 \
-          CONTENT_ID=IV0000-MOCK00007_00-MOCKPORT00000000 \
+          TITLE="MockPort J" TITLE_ID=MOCK00008 \
+          CONTENT_ID=IV0000-MOCK00008_00-MOCKPORT00000000 \
           bash ps4/tools/build_pkg.sh
 
-      - name: Upload variant G pkg
+      - name: Variant I (script + sample main, sample-style IDs)
+        continue-on-error: true
+        run: |
+          OUT="${GITHUB_WORKSPACE}/ps4/build-i" \
+          APP_SRC="${OO_PS4_TOOLCHAIN}/samples/hello_world/hello_world/main.cpp" \
+          COMPILE_FLAGS="" \
+          TITLE="MockPort I" TITLE_ID=BREW00086 \
+          CONTENT_ID=IV0000-BREW00086_00-HELLOWORLD000000 \
+          bash ps4/tools/build_pkg.sh
+
+      - name: Upload variant J pkg
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: MockPort-G-pkg
-          path: variant-g/*.pkg
+          name: MockPort-J-pkg
+          path: ps4/build-j/pkg/*.pkg
           if-no-files-found: ignore
 
-      - name: Upload variant H pkg
+      - name: Upload variant I pkg
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: MockPort-H-pkg
-          path: ps4/build-h/pkg/*.pkg
+          name: MockPort-I-pkg
+          path: ps4/build-i/pkg/*.pkg
           if-no-files-found: ignore
 
       # Control: the unmodified OpenOrbis hello_world sample.
