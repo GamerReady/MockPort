@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # Builds the MockPort PS4 shell with the OpenOrbis toolchain and packs a .pkg.
 # Requires: OO_PS4_TOOLCHAIN, clang, ld.lld, python3, libssl1.1 (PkgTool.Core).
+# Optional env: OUT, APP_SRC, TITLE, VERSION, CONTENT_ID, TITLE_ID (use
+# absolute paths for OUT and APP_SRC).
 set -euo pipefail
 
 : "${OO_PS4_TOOLCHAIN:?Set OO_PS4_TOOLCHAIN to the OpenOrbis toolchain root}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${OUT:-${ROOT}/build}"
+APP_SRC="${APP_SRC:-${ROOT}/app/main.cpp}"
 APP=mockport
 TITLE="${TITLE:-MockPort}"
 VERSION="${VERSION:-01.00}"
@@ -44,13 +47,13 @@ SFO="${OUT}/pkg/sce_sys/param.sfo"
 "${PKGTOOL}" sfo_setentry "${SFO}" TITLE_ID --type Utf8 --maxsize 12 --value "${TITLE_ID}"
 "${PKGTOOL}" sfo_setentry "${SFO}" VERSION --type Utf8 --maxsize 8 --value "${VERSION}"
 
-echo "==> Compiling"
+echo "==> Compiling ${APP_SRC}"
 "${CXX}" --target=x86_64-pc-freebsd12-elf -std=c++17 -O2 -fPIC -funwind-tables \
   -fno-exceptions -c \
   -isysroot "${OO_PS4_TOOLCHAIN}" \
   -isystem "${OO_PS4_TOOLCHAIN}/include" \
   -isystem "${OO_PS4_TOOLCHAIN}/include/c++/v1" \
-  "${ROOT}/app/main.cpp" -o "${OUT}/obj/main.o"
+  "${APP_SRC}" -o "${OUT}/obj/main.o"
 
 echo "==> Linking"
 "${LD}" -m elf_x86_64 -pie --script "${OO_PS4_TOOLCHAIN}/link.x" --eh-frame-hdr \
