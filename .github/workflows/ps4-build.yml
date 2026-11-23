@@ -73,6 +73,25 @@ jobs:
             ps4/build/pkg/eboot.bin
             ps4/build/pkg/sce_sys/
 
+      # Control build: the unmodified OpenOrbis hello_world sample. If this
+      # package launches on the console but MockPort does not, the difference
+      # is in our packaging; if neither launches, it is the console setup.
+      - name: Build OpenOrbis hello_world sample (control)
+        continue-on-error: true
+        run: |
+          cd "${OO_PS4_TOOLCHAIN}/samples/hello_world"
+          make
+          mkdir -p "${GITHUB_WORKSPACE}/control"
+          cp ./*.pkg "${GITHUB_WORKSPACE}/control/"
+
+      - name: Upload control package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: control-openorbis-hello-world-pkg
+          path: control/*.pkg
+          if-no-files-found: ignore
+
       # Informational: never fails the job. Shows what still blocks building
       # the full Mocktail port for Orbis (missing SDL3, libyaml, dlopen, ...).
       - name: Probe Mocktail PS4 sources
