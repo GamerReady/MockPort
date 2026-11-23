@@ -61,70 +61,14 @@ jobs:
           chmod +x "${root}"/bin/linux/* || true
           echo "OO_PS4_TOOLCHAIN=${root}" >> "$GITHUB_ENV"
 
-      # The sample's own Makefile builds every package below. MockPort-pkg uses
-      # MockPort's real main.cpp; the variants use the minimal main (known to
-      # launch) and add ONE change each:
-      #   icon: MockPort's generated icon0.png
-      #   ids:  MockPort Title ID / Content ID (MOCK...) instead of BREW...
       - name: Build MockPort .pkg
         run: bash ps4/tools/build_pkg.sh
-
-      - name: Variant icon (generated icon)
-        continue-on-error: true
-        run: |
-          OUT="${GITHUB_WORKSPACE}/ps4/build-icon" \
-          APP_SRC="${GITHUB_WORKSPACE}/ps4/app/main_min.cpp" \
-          CUSTOM_ICON=1 TITLE="MockPort icon" TITLE_ID=BREW00088 \
-          CONTENT_ID=IV0000-BREW00088_00-HELLOWORLD000000 \
-          bash ps4/tools/build_pkg.sh
-
-      - name: Variant ids (MockPort IDs)
-        continue-on-error: true
-        run: |
-          OUT="${GITHUB_WORKSPACE}/ps4/build-ids" \
-          APP_SRC="${GITHUB_WORKSPACE}/ps4/app/main_min.cpp" \
-          TITLE="MockPort ids" TITLE_ID=MOCK00001 \
-          CONTENT_ID=IV0000-MOCK00001_00-MOCKPORT00000000 \
-          bash ps4/tools/build_pkg.sh
 
       - name: Upload MockPort pkg
         uses: actions/upload-artifact@v4
         with:
           name: MockPort-pkg
           path: ps4/build/pkg/*.pkg
-
-      - name: Upload variant icon pkg
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: MockPort-icon-pkg
-          path: ps4/build-icon/pkg/*.pkg
-          if-no-files-found: ignore
-
-      - name: Upload variant ids pkg
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: MockPort-ids-pkg
-          path: ps4/build-ids/pkg/*.pkg
-          if-no-files-found: ignore
-
-      # Control: the unmodified OpenOrbis hello_world sample.
-      - name: Build OpenOrbis hello_world sample (control)
-        continue-on-error: true
-        run: |
-          cd "${OO_PS4_TOOLCHAIN}/samples/hello_world"
-          make
-          mkdir -p "${GITHUB_WORKSPACE}/control"
-          cp ./*.pkg "${GITHUB_WORKSPACE}/control/"
-
-      - name: Upload control pkg
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Control-hello-world-pkg
-          path: control/*.pkg
-          if-no-files-found: ignore
 
       # Informational: never fails the job; the report goes to the job summary.
       - name: Probe Mocktail PS4 sources
