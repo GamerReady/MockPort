@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Builds the MockPort PS4 shell with the OpenOrbis toolchain and packs a .pkg.
 # Requires: OO_PS4_TOOLCHAIN, clang, ld.lld, python3, libssl1.1 (PkgTool.Core).
-# Optional env: OUT, APP_SRC, TITLE, VERSION, CONTENT_ID, TITLE_ID (use
-# absolute paths for OUT and APP_SRC).
+# Optional env (use absolute paths for OUT, APP_SRC, ICON_SRC):
+#   OUT, APP_SRC, TITLE, VERSION, CONTENT_ID, TITLE_ID,
+#   ICON_SRC       use this icon0.png and ship no pic0.png,
+#   COMPILE_FLAGS  extra compiler flags (default: -std=c++17 -O2 -fno-exceptions).
 set -euo pipefail
 
 : "${OO_PS4_TOOLCHAIN:?Set OO_PS4_TOOLCHAIN to the OpenOrbis toolchain root}"
@@ -14,6 +16,7 @@ TITLE="${TITLE:-MockPort}"
 VERSION="${VERSION:-01.00}"
 CONTENT_ID="${CONTENT_ID:-IV0000-MOCK00001_00-MOCKPORT00000000}"
 TITLE_ID="${TITLE_ID:-MOCK00001}"
+COMPILE_FLAGS="${COMPILE_FLAGS--std=c++17 -O2 -fno-exceptions}"
 CXX="${CXX:-clang++}"
 LD="${LD:-ld.lld}"
 
@@ -30,6 +33,11 @@ mkdir -p "${OUT}/obj" "${OUT}/pkg"
 echo "==> Generating images"
 python3 "${ROOT}/tools/gen_assets.py" "${OUT}/pkg" \
   --content-id "${CONTENT_ID}" --title-id "${TITLE_ID}"
+if [ -n "${ICON_SRC:-}" ]; then
+  echo "==> Using icon ${ICON_SRC} (no pic0.png)"
+  cp "${ICON_SRC}" "${OUT}/pkg/sce_sys/icon0.png"
+  rm -f "${OUT}/pkg/sce_sys/pic0.png"
+fi
 
 # Same param.sfo recipe as the OpenOrbis hello_world sample (PkgTool.Core).
 echo "==> Creating param.sfo with PkgTool.Core"
@@ -47,9 +55,9 @@ SFO="${OUT}/pkg/sce_sys/param.sfo"
 "${PKGTOOL}" sfo_setentry "${SFO}" TITLE_ID --type Utf8 --maxsize 12 --value "${TITLE_ID}"
 "${PKGTOOL}" sfo_setentry "${SFO}" VERSION --type Utf8 --maxsize 8 --value "${VERSION}"
 
-echo "==> Compiling ${APP_SRC}"
-"${CXX}" --target=x86_64-pc-freebsd12-elf -std=c++17 -O2 -fPIC -funwind-tables \
-  -fno-exceptions -c \
+echo "==> Compiling ${APP_SRC} (flags: ${COMPILE_FLAGS:-<default>})"
+# shellcheck disable=SC2086
+"${CXX}" --target=x86_64-pc-freebsd12-elf ${COMPILE_FLAGS} -fPIC -funwind-tables -c \
   -isysroot "${OO_PS4_TOOLCHAIN}" \
   -isystem "${OO_PS4_TOOLCHAIN}/include" \
   -isystem "${OO_PS4_TOOLCHAIN}/include/c++/v1" \
@@ -66,13 +74,15 @@ echo "==> Creating eboot.bin"
 
 echo "==> Building .pkg"
 cd "${OUT}/pkg"
-FILES="eboot.bin sce_sys/param.sfo sce_sys/icon0.png sce_sys/pic0.png"
+FILES="eboot.bin sce_sys/param.sfo sce_sys/icon0.png"
+[ -f sce_sys/pic0.png ] && FILES="${FILES} sce_sys/pic0.png"
 # Optional extras, if the toolchain ships them.
 if [ -f "${OO_PS4_TOOLCHAIN}/samples/hello_world/sce_sys/about/right.sprx" ]; then
   mkdir -p sce_sys/about
   cp "${OO_PS4_TOOLCHAIN}/samples/hello_world/sce_sys/about/right.sprx" sce_sys/about/
   FILES="${FILES} sce_sys/about/right.sprx"
 fi
+echo "files: ${FILES}"
 "${OO_BIN}/create-gp4" -out pkg.gp4 --content-id="${CONTENT_ID}" --files "${FILES}"
 "${PKGTOOL}" pkg_build pkg.gp4 .
 
