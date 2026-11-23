@@ -61,51 +61,77 @@ jobs:
           chmod +x "${root}"/bin/linux/* || true
           echo "OO_PS4_TOOLCHAIN=${root}" >> "$GITHUB_ENV"
 
-      - name: Build eboot.bin and .pkg
+      - name: Build MockPort .pkg
         run: bash ps4/tools/build_pkg.sh
 
-      - name: Upload package
+      - name: Upload MockPort pkg
         uses: actions/upload-artifact@v4
         with:
-          name: mockport-ps4-pkg
-          path: |
-            ps4/build/pkg/*.pkg
-            ps4/build/pkg/eboot.bin
-            ps4/build/pkg/sce_sys/
+          name: MockPort-pkg
+          path: ps4/build/pkg/*.pkg
 
-      # Launch bisection. The OpenOrbis hello_world control launches on the
-      # console but MockPort reports "corrupted data", so build variants that
-      # change one thing at a time. Install each one separately.
-      #   A: minimal code (printf + 10 s wait), MockPort assets and IDs.
-      #   B: full MockPort code, BREW-style Title ID like the sample.
-      - name: Variant A (minimal code)
+      # Launch bisection: the OpenOrbis hello_world control launches on the
+      # console but MockPort reports "corrupted data". Each variant changes
+      # one thing relative to MockPort (minimal code, loops forever):
+      #   D: icon0.png from the OpenOrbis sample, no pic0.png
+      #   E: default compiler flags (no -O2/-fno-exceptions/-std)
+      #   F: both D and E together
+      - name: Variant D (sample icon, no pic0)
         continue-on-error: true
         run: |
-          OUT="${GITHUB_WORKSPACE}/ps4/build-a" \
+          OUT="${GITHUB_WORKSPACE}/ps4/build-d" \
           APP_SRC="${GITHUB_WORKSPACE}/ps4/app/main_min.cpp" \
-          TITLE="MockPort A min" TITLE_ID=MOCK00002 \
-          CONTENT_ID=IV0000-MOCK00002_00-MOCKPORT00000000 \
+          ICON_SRC="${OO_PS4_TOOLCHAIN}/samples/hello_world/sce_sys/icon0.png" \
+          TITLE="MockPort D" TITLE_ID=MOCK00004 \
+          CONTENT_ID=IV0000-MOCK00004_00-MOCKPORT00000000 \
           bash ps4/tools/build_pkg.sh
 
-      - name: Variant B (BREW Title ID)
+      - name: Variant E (default compiler flags)
         continue-on-error: true
         run: |
-          OUT="${GITHUB_WORKSPACE}/ps4/build-b" \
-          TITLE="MockPort B brew" TITLE_ID=BREW00084 \
-          CONTENT_ID=IV0000-BREW00084_00-MOCKPORT00000000 \
+          OUT="${GITHUB_WORKSPACE}/ps4/build-e" \
+          APP_SRC="${GITHUB_WORKSPACE}/ps4/app/main_min.cpp" \
+          COMPILE_FLAGS="" \
+          TITLE="MockPort E" TITLE_ID=MOCK00005 \
+          CONTENT_ID=IV0000-MOCK00005_00-MOCKPORT00000000 \
           bash ps4/tools/build_pkg.sh
 
-      - name: Upload variant packages
+      - name: Variant F (sample icon and default flags)
+        continue-on-error: true
+        run: |
+          OUT="${GITHUB_WORKSPACE}/ps4/build-f" \
+          APP_SRC="${GITHUB_WORKSPACE}/ps4/app/main_min.cpp" \
+          ICON_SRC="${OO_PS4_TOOLCHAIN}/samples/hello_world/sce_sys/icon0.png" \
+          COMPILE_FLAGS="" \
+          TITLE="MockPort F" TITLE_ID=MOCK00006 \
+          CONTENT_ID=IV0000-MOCK00006_00-MOCKPORT00000000 \
+          bash ps4/tools/build_pkg.sh
+
+      - name: Upload variant D pkg
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: variant-pkgs
-          path: |
-            ps4/build-a/pkg/*.pkg
-            ps4/build-b/pkg/*.pkg
+          name: MockPort-D-pkg
+          path: ps4/build-d/pkg/*.pkg
           if-no-files-found: ignore
 
-      # Control build: the unmodified OpenOrbis hello_world sample.
+      - name: Upload variant E pkg
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MockPort-E-pkg
+          path: ps4/build-e/pkg/*.pkg
+          if-no-files-found: ignore
+
+      - name: Upload variant F pkg
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MockPort-F-pkg
+          path: ps4/build-f/pkg/*.pkg
+          if-no-files-found: ignore
+
+      # Control: the unmodified OpenOrbis hello_world sample.
       - name: Build OpenOrbis hello_world sample (control)
         continue-on-error: true
         run: |
@@ -114,24 +140,15 @@ jobs:
           mkdir -p "${GITHUB_WORKSPACE}/control"
           cp ./*.pkg "${GITHUB_WORKSPACE}/control/"
 
-      - name: Upload control package
+      - name: Upload control pkg
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: control-openorbis-hello-world-pkg
+          name: Control-hello-world-pkg
           path: control/*.pkg
           if-no-files-found: ignore
 
-      # Informational: never fails the job. Shows what still blocks building
-      # the full Mocktail port for Orbis (missing SDL3, libyaml, dlopen, ...).
+      # Informational: never fails the job; the report goes to the job summary.
       - name: Probe Mocktail PS4 sources
         continue-on-error: true
         run: bash ps4/tools/probe_port_sources.sh
-
-      - name: Upload probe report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ps4-port-probe-report
-          path: ps4/build/probe-report.md
-          if-no-files-found: ignore
