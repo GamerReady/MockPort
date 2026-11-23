@@ -68,12 +68,14 @@ echo "==> Linking"
   -L"${OO_PS4_TOOLCHAIN}/lib" "${OUT}/obj/main.o" -o "${OUT}/${APP}.elf" \
   -lc -lkernel -lc++ "${OO_PS4_TOOLCHAIN}/lib/crt1.o"
 
+# Run from the package directory with a relative --eboot name, exactly like
+# the OpenOrbis sample Makefile does.
 echo "==> Creating eboot.bin"
+cd "${OUT}/pkg"
 "${OO_BIN}/create-fself" -in="${OUT}/${APP}.elf" -out="${OUT}/${APP}.oelf" \
-  --eboot "${OUT}/pkg/eboot.bin" --paid 0x3800000000000011
+  --eboot "eboot.bin" --paid 0x3800000000000011
 
 echo "==> Building .pkg"
-cd "${OUT}/pkg"
 FILES="eboot.bin sce_sys/param.sfo sce_sys/icon0.png"
 [ -f sce_sys/pic0.png ] && FILES="${FILES} sce_sys/pic0.png"
 # Optional extras, if the toolchain ships them.
