@@ -73,9 +73,39 @@ jobs:
             ps4/build/pkg/eboot.bin
             ps4/build/pkg/sce_sys/
 
-      # Control build: the unmodified OpenOrbis hello_world sample. If this
-      # package launches on the console but MockPort does not, the difference
-      # is in our packaging; if neither launches, it is the console setup.
+      # Launch bisection. The OpenOrbis hello_world control launches on the
+      # console but MockPort reports "corrupted data", so build variants that
+      # change one thing at a time. Install each one separately.
+      #   A: minimal code (printf + 10 s wait), MockPort assets and IDs.
+      #   B: full MockPort code, BREW-style Title ID like the sample.
+      - name: Variant A (minimal code)
+        continue-on-error: true
+        run: |
+          OUT="${GITHUB_WORKSPACE}/ps4/build-a" \
+          APP_SRC="${GITHUB_WORKSPACE}/ps4/app/main_min.cpp" \
+          TITLE="MockPort A min" TITLE_ID=MOCK00002 \
+          CONTENT_ID=IV0000-MOCK00002_00-MOCKPORT00000000 \
+          bash ps4/tools/build_pkg.sh
+
+      - name: Variant B (BREW Title ID)
+        continue-on-error: true
+        run: |
+          OUT="${GITHUB_WORKSPACE}/ps4/build-b" \
+          TITLE="MockPort B brew" TITLE_ID=BREW00084 \
+          CONTENT_ID=IV0000-BREW00084_00-MOCKPORT00000000 \
+          bash ps4/tools/build_pkg.sh
+
+      - name: Upload variant packages
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: variant-pkgs
+          path: |
+            ps4/build-a/pkg/*.pkg
+            ps4/build-b/pkg/*.pkg
+          if-no-files-found: ignore
+
+      # Control build: the unmodified OpenOrbis hello_world sample.
       - name: Build OpenOrbis hello_world sample (control)
         continue-on-error: true
         run: |
